@@ -10,7 +10,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bookshelf": "^0.10.4",
     "hapi": "^16.5.0",
-    "inert": "^4.2.0"
+    "inert": "^4.2.0",
+    "knex": "^0.13.0",
+    "pg": "^7.0.2"
   }
 }
