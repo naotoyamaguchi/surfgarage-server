@@ -15,8 +15,10 @@ var knex = require('knex')({
   }
 });
 
+//connect bookshelf to our knex which also includes connection property to our database
 var bookshelf = require('bookshelf')(knex);
 
+//defining the surfboard model from our database.
 var Surfboard = bookshelf.Model.extend({
   tableName: 'Surfboards',
   name: 'text',
@@ -27,18 +29,22 @@ var Surfboard = bookshelf.Model.extend({
   shaper: 'text'
 });
 
-// console.log(Surfboard);
-
+//assigning the actual server's configuration
+//this will be edited LATER for configuration to host in a config file as well (?)
 server.connection({
 	host: 'localhost',
 	port: PORT
 });
 
+//calling 'inert' package to allow for access to reply with public files.
 server.register(require('inert'), (err) => {
+	//initial error check
 	if(err){
 		throw err;
 	}
 
+	//dummyApi for testing
+	//Need to delete later
 	server.route({
 		method: 'GET',
 		path: '/api/test',
@@ -61,6 +67,7 @@ server.register(require('inert'), (err) => {
 		}
 	});
 
+	//POST route that takes in key/value pairs from POST request
 	server.route({
 		method: 'POST',
 		path: '/api/newBoard',
@@ -84,6 +91,7 @@ server.register(require('inert'), (err) => {
 		}
 	});
 
+	//DELETE route that utilizes a parameter from {id} to delete specific boards from the database
 	server.route({
 		method: 'DELETE',
 		path: '/api/deleteBoard/{id}',
@@ -107,11 +115,13 @@ server.register(require('inert'), (err) => {
 });
 
 
-
+//initializes server
 server.start((err) => {
+	//initial error check
 	if(err){
 		throw err;
 	}
 
+	//console log sanity when server is running properly
 	console.log('Server running at: ', server.info.uri);
 });
