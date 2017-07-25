@@ -72,15 +72,15 @@ server.register(require('inert'), (err) => {
 		method: 'POST',
 		path: '/api/newBoard',
 		handler: function(request, reply){
-			console.log(request.query);
+			console.log(request);
 			new Surfboard({
-				name: request.query.name,
-				feet: request.query.feet,
-				inches: request.query.inches,
-				width: request.query.width,
-				thickness: request.query.thickness,
-				shaper: request.query.shaper,
-				fins: request.query.fins,
+				name: request.payload.name,
+				feet: request.payload.feet,
+				inches: request.payload.inches,
+				width: request.payload.width,
+				thickness: request.payload.thickness,
+				shaper: request.payload.shaper,
+				fins: request.payload.fins,
 				createdAt: new Date(),
 				updatedAt: new Date()
 			})
