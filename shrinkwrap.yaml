@@ -1,6 +1,8 @@
 dependencies:
   bookshelf: 0.10.4
+  file-system: 2.2.2
   hapi: 16.5.0
+  hapi-bully-imageupload: 1.2.1
   inert: 4.2.0
   knex: 0.13.0
   pg: 7.0.2
@@ -139,6 +141,11 @@ packages:
       fs-exists-sync: 0.1.0
     resolution:
       integrity: sha1-STXe39lIhkjgBrASlWbpOGcR6mM=
+  /digest-stream/0.2.2:
+    dependencies:
+      pass-stream: 0.1.5
+    resolution:
+      integrity: sha1-rW9cQoh2wPBM55nK9Ijs5NIQ0kI=
   /escape-string-regexp/1.0.5:
     resolution:
       integrity: sha1-G2HAViGQqN/2rjuyzwIAyhMLhtQ=
@@ -165,6 +172,17 @@ packages:
       is-extglob: 1.0.0
     resolution:
       integrity: sha1-Lhj/PS9JqydlzskCPwEdqo2DSaE=
+  /file-match/1.0.2:
+    dependencies:
+      utils-extend: 1.0.8
+    resolution:
+      integrity: sha1-ycrSZdLIrfOoFHWw30dYWQafrvc=
+  /file-system/2.2.2:
+    dependencies:
+      file-match: 1.0.2
+      utils-extend: 1.0.8
+    resolution:
+      integrity: sha1-fWWDPjojR9zZVqgTxncVPtPt2Yc=
   /filename-regex/2.0.1:
     resolution:
       integrity: sha1-wcS5vuPglyXdsQa3XB4wH+LxiyY=
@@ -227,6 +245,12 @@ packages:
       which: 1.2.14
     resolution:
       integrity: sha1-jTvGuNo8qBEqFg2NSW/wRiv+948=
+  /hapi-bully-imageupload/1.2.1:
+    dependencies:
+      digest-stream: 0.2.2
+      node-uuid: 1.4.8
+    resolution:
+      integrity: sha1-gu4RZUQvAtF6PLSm/yGyKLvRYIQ=
   /hapi/16.5.0:
     dependencies:
       accept: 2.1.4
@@ -463,6 +487,9 @@ packages:
       vise: 2.0.2
     resolution:
       integrity: sha1-k6GGb7DFLYc5CqdeKxYfS1x15bE=
+  /node-uuid/1.4.8:
+    resolution:
+      integrity: sha1-sEDrCSOWivq/jTL7HxfxFn/auQc=
   /normalize-path/2.1.1:
     dependencies:
       remove-trailing-separator: 1.0.2
@@ -491,6 +518,11 @@ packages:
   /parse-passwd/1.0.0:
     resolution:
       integrity: sha1-bVuTSkVpk7I9N/QKOC1vFmao5cY=
+  /pass-stream/0.1.5:
+    dependencies:
+      readable-stream: github.com/jeffbski/readable-stream/archive/v1.0.2-object-transform2-ret-self.tar.gz
+    resolution:
+      integrity: sha1-njr6TVglzdE3YHW9tW3jbfszZJ8=
   /path-parse/1.0.5:
     resolution:
       integrity: sha1-PBrfhx6pzWyUMbbqK9dKD/BVxME=
@@ -672,6 +704,9 @@ packages:
   /user-home/1.1.1:
     resolution:
       integrity: sha1-K1viOjK2Onyd640PKNSFcko98ZA=
+  /utils-extend/1.0.8:
+    resolution:
+      integrity: sha1-zP17ZFQPjpDuIe7Fd2nQZRyril8=
   /uuid/3.1.0:
     resolution:
       integrity: sha512-DIWtzUkw04M4k3bf1IcpS2tngXEL26YUD2M0tMDUpnUrz2hgzUBlD55a4FjdLGPvfHxS6uluGWvaVEqgBcVa+g==
@@ -702,11 +737,16 @@ packages:
   /yallist/2.1.2:
     resolution:
       integrity: sha1-HBH5IY8HYImkfdUS+TxmmaaoHVI=
+  github.com/jeffbski/readable-stream/archive/v1.0.2-object-transform2-ret-self.tar.gz:
+    resolution:
+      tarball: 'https://github.com/jeffbski/readable-stream/archive/v1.0.2-object-transform2-ret-self.tar.gz'
 registry: 'https://registry.npmjs.org/'
 shrinkwrapVersion: 3
 specifiers:
   bookshelf: ^0.10.4
+  file-system: ^2.2.2
   hapi: ^16.5.0
+  hapi-bully-imageupload: ^1.2.1
   inert: ^4.2.0
   knex: ^0.13.0
   pg: ^7.0.2

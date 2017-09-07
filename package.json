@@ -10,10 +10,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.110.0",
     "bookshelf": "^0.10.4",
+    "file-system": "^2.2.2",
     "hapi": "^16.5.0",
+    "hapi-bully-imageupload": "^1.2.1",
+    "hapi-upload-s3": "^2.2.0",
     "inert": "^4.2.0",
+    "joi": "^10.6.0",
     "knex": "^0.13.0",
-    "pg": "^7.0.2"
+    "pg": "^7.0.2",
+    "s3-image-uploader": "^1.0.7"
   }
 }
