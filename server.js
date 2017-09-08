@@ -38,6 +38,7 @@ var knex = require('knex')({
 //connect bookshelf to our knex which also includes connection property to our database
 var bookshelf = require('bookshelf')(knex);
 
+
 //defining the surfboard model from our database.
 var Surfboard = bookshelf.Model.extend({
   tableName: 'surfboards',
@@ -47,12 +48,16 @@ var Surfboard = bookshelf.Model.extend({
   width: 'float',
   thickness: 'float',
   shaper: 'text',
-  url: 'text'
+  url: 'text',
+  images: function(){
+  	return this.hasMany(Image);
+  }
 });
 
+//defining the image model from our database.
 var Image = bookshelf.Model.extend({
 	tableName: 'images',
-	post_id: 'integer',
+	surfboard_id: 'integer',
 	url: 'text'
 });
 
@@ -91,12 +96,18 @@ server.register((
 
 	//dummyApi for testing
 	//Need to delete later
+
+	// Surfboard.collection().fetch().then(function(collection) {
+	// 	console.log(collection);
+	//   reply(collection);
+	// });
 	server.route({
 		method: 'GET',
-		path: '/api/test',
+		path: '/api/boards',
 		handler: function(request, reply){
-			Surfboard.collection().fetch().then(function(collection) {
-			  reply(collection);
+			Surfboard.fetchAll({withRelated: ['images']}).then(function(surfboard){
+				// console.log(JSON.stringify(surfboard));
+				reply(JSON.stringify(surfboard));
 			});
 		}
 	});
@@ -126,13 +137,13 @@ server.register((
 					const params = {
 						Body: request.payload['surfboardImg'+`[${i}]`]._data,
 						Bucket: "surf-garage", 
-						Key: 'surfboards/'+Date.now()+request.payload['surfboardImg'+`[${i}]`].hapi.filename,
+						Key: 'surfboards/'+Date.now()+'/'+request.payload['surfboardImg'+`[${i}]`].hapi.filename,
 						ACL: 'public-read',
 						ContentType: 'image/png'
 					};
 					s3.upload(params, function(err, data){
 						new Image({
-							post_id: model.attributes.id,
+							surfboard_id: model.attributes.id,
 							url: data.Location
 						})
 						.save(null, {method: 'insert'});
