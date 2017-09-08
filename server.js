@@ -106,39 +106,40 @@ server.register((
 		method: 'POST',
 		path: '/api/newBoard',
 		handler: function(request, reply){
-			console.log(request.payload['surfboardImg[file]']);
+			console.log(request.payload);
 
-			const params = {
-			  Body: request.payload['surfboardImg[file]'], 
-			  Bucket: "surf-garage", 
-			  Key: 'surfboards/'+Date.now()+request.payload['surfboardImg[name]'],
-			  ACL: 'public-read',
-			  ContentType: 'image/png'
-			 };
-
-			 s3.upload(params, function(err, data) {
-				  new Surfboard({
-						name: request.payload.name,
+			new Surfboard({
+				name: request.payload.name,
 						feet: request.payload.feet,
 						inches: request.payload.inches,
 						width: request.payload.width,
 						thickness: request.payload.thickness,
 						shaper: request.payload.shaper,
 						fins: request.payload.fins,
-						url: data.Location,
 						createdAt: new Date(),
 						updatedAt: new Date()
-					})
-					.save(null, {method: 'insert'})
-					.then(function(model) {
-						console.log(model.attributes.id);
+			})
+			.save(null, {method: 'insert'})
+			.then(function(model){
+				console.log(model.attributes.id);
+				for(var i = 0; i < request.payload.numOfFiles; i++){
+					const params = {
+						Body: request.payload['surfboardImg'+`[${i}]`]._data,
+						Bucket: "surf-garage", 
+						Key: 'surfboards/'+Date.now()+request.payload['surfboardImg'+`[${i}]`].hapi.filename,
+						ACL: 'public-read',
+						ContentType: 'image/png'
+					};
+					s3.upload(params, function(err, data){
 						new Image({
 							post_id: model.attributes.id,
 							url: data.Location
 						})
 						.save(null, {method: 'insert'});
 					});
+				}
 			});
+
 		},
 		config: {
 			cors: {
