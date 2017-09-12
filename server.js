@@ -269,9 +269,7 @@ server.register(
 			Surfboard.forge({id: encodeURIComponent(request.params.id)})
 			.fetch({require: true, withRelated:['images']})
 			.then(function(board){
-				console.log("relatedimages", board.related('images').models);
 				board.related('images').models.map((image, index, array) => {
-					console.log("each image", image.attributes);
 					const params = {
 						Bucket: "surf-garage",
 						Key: image.attributes.url.split('.com/').pop()
@@ -285,8 +283,12 @@ server.register(
 					});
 				});
 				board.related('images')
+				.invokeThen('destroy')
 				.then(function(){
-					reply("OK");
+					board.destroy()
+					.then(function(){
+						reply("OK");
+					});
 				})
 				.catch(function(err) {
 					reply({error: true, data: {message: err.message}});
