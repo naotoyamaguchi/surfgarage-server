@@ -17,20 +17,13 @@ const privateKey = 'TemporaryPrivateKey';
 var validate = function (request, decodedToken, callback) {
 		console.log("REQUEST", request);
 
-    // console.log(decodedToken);  // should be {accountId : 123}.
-
-    if (decodedToken) {
-      console.log(decodedToken.username.toString());
-    }
-
     new User({'username': decodedToken.username})
     	.fetch({ require : true })
     	.then(function(model){
     		if(!model){
     			return callback(null,false);
     		}
-    		console.log("model in validate:", model.attributes);
-    		console.log("model serialize");
+    		// console.log("model serialize");
     		var account = model.attributes;
     		console.log("passed auth");
     		return callback(null, true, account);
@@ -276,13 +269,24 @@ server.register(
 			Surfboard.forge({id: encodeURIComponent(request.params.id)})
 			.fetch({require: true, withRelated:['images']})
 			.then(function(board){
-				board.related('images')
-				.invokeThen('destroy')
-				.then(function(){
-					board.destroy()
-					.then(function(){
-						reply("OK");
+				console.log("relatedimages", board.related('images').models);
+				board.related('images').models.map((image, index, array) => {
+					console.log("each image", image.attributes);
+					const params = {
+						Bucket: "surf-garage",
+						Key: image.attributes.url.split('.com/').pop()
+					};
+					s3.deleteObject(params, function(err, data){
+						if(err){
+							console.log(err, err.stack);
+						} else {
+							console.log(data);
+						}
 					});
+				});
+				board.related('images')
+				.then(function(){
+					reply("OK");
 				})
 				.catch(function(err) {
 					reply({error: true, data: {message: err.message}});
