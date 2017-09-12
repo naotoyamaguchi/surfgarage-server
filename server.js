@@ -2,10 +2,46 @@ const Hapi = require('hapi');
 const fs = require('fs');
 const Joi = require('joi');
 const path = require('path');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 const server = new Hapi.Server();
+const hapiAuthJwt = require('hapi-auth-jwt');
+const jwt = require('jsonwebtoken');
 const PORT = process.env.PORT || 3000;
 const hapiImageUpload = require('hapi-bully-imageupload');
 const util = require('util');
+const RedisStore = require('connect-redis');
+
+const privateKey = 'TemporaryPrivateKey';
+
+var validate = function (request, decodedToken, callback) {
+		console.log("REQUEST", request);
+
+    // console.log(decodedToken);  // should be {accountId : 123}.
+
+    if (decodedToken) {
+      console.log(decodedToken.username.toString());
+    }
+
+    new User({'username': decodedToken.username})
+    	.fetch({ require : true })
+    	.then(function(model){
+    		if(!model){
+    			return callback(null,false);
+    		}
+    		console.log("model in validate:", model.attributes);
+    		console.log("model serialize");
+    		var account = model.attributes;
+    		console.log("passed auth");
+    		return callback(null, true, account);
+    	})
+    	.catch(err => {
+    		console.log("Bad Token");
+    		return callback(null, false);
+    	});
+};
+
+
 
 const AWS = require('aws-sdk');
 const AWS_CONFIG = require('./config/aws.json');
@@ -61,6 +97,13 @@ var Image = bookshelf.Model.extend({
 	url: 'text'
 });
 
+//defining the user model from our database.
+var User = bookshelf.Model.extend({
+	tableName: 'users',
+	username: 'text',
+	password: 'text'
+});
+
 //assigning the actual server's configuration
 //this will be edited LATER for configuration to host in a config file as well (?)
 server.connection({
@@ -69,8 +112,11 @@ server.connection({
 });
 
 //calling 'inert' package to allow for access to reply with public files.
-server.register((
+server.register(
 	[
+		{
+			'register': require('hapi-auth-jwt')
+		},
 		{
 			'register': require('inert')
 		}, 
@@ -87,20 +133,16 @@ server.register((
 				'prefix': '/api'
 			}
 		}
-	]
-), (err) => {
+	], (err) => {
 	//initial error check
 	if(err){
 		throw err;
 	}
+	server.auth.strategy('token', 'jwt', { key: privateKey,
+			                                         validateFunc: validate,
+			                                         verifyOptions: { algorithms: [ 'HS256' ] }
+			                                       });
 
-	//dummyApi for testing
-	//Need to delete later
-
-	// Surfboard.collection().fetch().then(function(collection) {
-	// 	console.log(collection);
-	//   reply(collection);
-	// });
 	server.route({
 		method: 'GET',
 		path: '/api/boards',
@@ -112,13 +154,85 @@ server.register((
 		}
 	});
 
+	//POST route that registers user
+	server.route({
+		method: 'POST',
+		path: '/api/newUser',
+		handler: function(request, reply){
+			console.log(request.payload);
+			bcrypt.genSalt(saltRounds, function(err, salt){
+				bcrypt.hash(request.payload.password, salt, function(err, hash){
+					console.log("hash", hash);
+					new User({
+						username: request.payload.username,
+						password: hash
+					})
+					.save(null, {method: 'insert'})
+					.then(function() {
+						reply("OK");
+					});
+				});
+			});
+		},
+		config: {
+			cors: {
+				origin: ['*'],
+				additionalHeaders: ['cache-control', 'x-requested-with']
+			}
+		}
+	});
+
+	//POST route that logs user in & gets a signed JWT on success
+	server.route({
+		method: 'POST',
+		path: '/api/login',
+		config: {
+			auth: false,
+			cors: {
+				origin: ['*'],
+				additionalHeaders: ['cache-control', 'x-requested-with']
+			}
+		},
+		handler: function(request, reply){
+			console.log(request.payload);
+			new User({'username': request.payload.username})
+				.fetch()
+				.then(function(model){
+					console.log("model.attributes here", model.attributes);
+					bcrypt.compare(request.payload.password, model.get('password')).then(res => {
+						if(res){
+							console.log("Success", model.attributes);
+							console.log("The JWT", jwt.sign(model.attributes, privateKey, { algorithm: 'HS256'}));
+							reply({'JWT': jwt.sign({username: model.attributes.username, id: model.attributes.id}, privateKey, { algorithm: 'HS256'})});
+						} else {
+							console.log("Bad password");
+						}
+					});
+				})
+				.catch(err => {
+					console.log("Error", err);
+					return done(null, false);
+				});
+		}
+	});
+
 	//POST route that takes in key/value pairs from POST request
 	server.route({
 		method: 'POST',
 		path: '/api/newBoard',
+		config: {
+			auth: 'token',
+			cors: {
+				origin: ['*'],
+				additionalHeaders: ['cache-control', 'x-requested-with']
+			},
+			payload: {
+				output: 'stream',
+				parse: true,
+				allow: ['application/json', 'image/jpeg', 'multipart/form-data','application/pdf', 'application/x-www-form-urlencoded']			}
+		},
 		handler: function(request, reply){
-			console.log(request.payload);
-
+			// console.log("Req payload", request.payload);
 			new Surfboard({
 				name: request.payload.name,
 						feet: request.payload.feet,
@@ -132,7 +246,7 @@ server.register((
 			})
 			.save(null, {method: 'insert'})
 			.then(function(model){
-				console.log(model.attributes.id);
+				// console.log(model.attributes.id);
 				for(var i = 0; i < request.payload.numOfFiles; i++){
 					const params = {
 						Body: request.payload['surfboardImg'+`[${i}]`]._data,
@@ -151,16 +265,6 @@ server.register((
 				}
 			});
 
-		},
-		config: {
-			cors: {
-				origin: ['*'],
-				additionalHeaders: ['cache-control', 'x-requested-with']
-			},
-			payload: {
-				output: 'stream',
-				parse: true,
-				allow: ['application/json', 'image/jpeg', 'multipart/form-data','application/pdf', 'application/x-www-form-urlencoded']			}
 		}
 	});
 
@@ -170,11 +274,15 @@ server.register((
 		path: '/api/deleteBoard/{id}',
 		handler: function(request, reply){
 			Surfboard.forge({id: encodeURIComponent(request.params.id)})
-			.fetch({require: true})
+			.fetch({require: true, withRelated:['images']})
 			.then(function(board){
-				board.destroy()
+				board.related('images')
+				.invokeThen('destroy')
 				.then(function(){
-					reply({error: false, data: {message: 'Board successfully deleted!'}});
+					board.destroy()
+					.then(function(){
+						reply("OK");
+					});
 				})
 				.catch(function(err) {
 					reply({error: true, data: {message: err.message}});
@@ -183,7 +291,14 @@ server.register((
 			.catch(function(err) {
 				reply({error: true, data: {message: err.message}});
 			});
-		}
+		},
+		// config: {
+		// 	auth: 'token',
+		// 	cors: {
+		// 		origin: ['*'],
+		// 		additionalHeaders: ['cache-control', 'x-requested-with']
+		// 	}
+		// }
 	});
 });
 
