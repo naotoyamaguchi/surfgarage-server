@@ -15,12 +15,12 @@ const RedisStore = require('connect-redis');
 const privateKey = 'TemporaryPrivateKey';
 
 var validate = function (request, decodedToken, callback) {
-		console.log("REQUEST", request);
 
     new User({'username': decodedToken.username})
     	.fetch({ require : true })
     	.then(function(model){
     		if(!model){
+    			console.log("bad model");
     			return callback(null,false);
     		}
     		// console.log("model serialize");
@@ -133,16 +133,31 @@ server.register(
 	}
 	server.auth.strategy('token', 'jwt', { key: privateKey,
 			                                         validateFunc: validate,
-			                                         verifyOptions: { algorithms: [ 'HS256' ] }
+			                                         verifyOptions: { algorithms: [ 'HS256' ]}
 			                                       });
 
+	//GET route for all boards in gallery
 	server.route({
 		method: 'GET',
 		path: '/api/boards',
 		handler: function(request, reply){
 			Surfboard.fetchAll({withRelated: ['images']}).then(function(surfboard){
-				// console.log(JSON.stringify(surfboard));
 				reply(JSON.stringify(surfboard));
+			});
+		}
+	});
+
+	//GET route for individual board based on params.id
+	server.route({
+		method: 'GET',
+		path: '/api/boards/{id}',
+		handler: function(request, reply){
+			console.log(request.params);
+			Surfboard.forge({id: encodeURIComponent(request.params.id)})
+			.fetch({require: true, withRelated:['images']})
+			.then(board => {
+				console.log(JSON.stringify(board));
+				reply(JSON.stringify(board));
 			});
 		}
 	});
@@ -152,10 +167,8 @@ server.register(
 		method: 'POST',
 		path: '/api/newUser',
 		handler: function(request, reply){
-			console.log(request.payload);
 			bcrypt.genSalt(saltRounds, function(err, salt){
 				bcrypt.hash(request.payload.password, salt, function(err, hash){
-					console.log("hash", hash);
 					new User({
 						username: request.payload.username,
 						password: hash
@@ -187,7 +200,6 @@ server.register(
 			}
 		},
 		handler: function(request, reply){
-			console.log(request.payload);
 			new User({'username': request.payload.username})
 				.fetch()
 				.then(function(model){
@@ -222,10 +234,10 @@ server.register(
 			payload: {
 				output: 'stream',
 				parse: true,
-				allow: ['application/json', 'image/jpeg', 'multipart/form-data','application/pdf', 'application/x-www-form-urlencoded']			}
+				allow: ['application/json', 'image/jpeg', 'multipart/form-data','application/pdf', 'application/x-www-form-urlencoded']
+			}
 		},
 		handler: function(request, reply){
-			// console.log("Req payload", request.payload);
 			new Surfboard({
 				name: request.payload.name,
 						feet: request.payload.feet,
@@ -239,8 +251,7 @@ server.register(
 			})
 			.save(null, {method: 'insert'})
 			.then(function(model){
-				// console.log(model.attributes.id);
-				for(var i = 0; i < request.payload.numOfFiles; i++){
+				return Promise.all(new Array(parseInt(request.payload.numOfFiles)).fill(null).map((c, i) => {
 					const params = {
 						Body: request.payload['surfboardImg'+`[${i}]`]._data,
 						Bucket: "surf-garage", 
@@ -248,16 +259,46 @@ server.register(
 						ACL: 'public-read',
 						ContentType: 'image/png'
 					};
-					s3.upload(params, function(err, data){
-						new Image({
-							surfboard_id: model.attributes.id,
-							url: data.Location
-						})
-						.save(null, {method: 'insert'});
+					return new Promise((resolve, reject) => {
+						s3.upload(params, function(err, data){
+							if(err){
+								return reject(err);
+							}
+							new Image({
+								surfboard_id: model.attributes.id,
+								url: data.Location
+							})
+							.save(null, {method: 'insert'})
+							.then(resolve)
+							.catch(reject);
+						});
 					});
-				}
+				}));
+			})
+			.then((images) => {
+				reply("OK");
+			})
+			.catch((err) => {
+				reply(err);
 			});
+		}
+	});
 
+	//PUT route to specify a featured or default image to each surfboard
+	server.route({
+		method: 'PUT',
+		path: '/api/boards/{surfboard_id}/{image_id}',
+		config: {
+
+		},
+		handler: function(request, reply){
+			console.log("in handler");
+			Surfboard.forge({id: encodeURIComponent(request.params.surfboard_id)})
+			.fetch()
+			.then(board => {
+				console.log(board);
+				reply("OK");
+			});
 		}
 	});
 
@@ -265,46 +306,55 @@ server.register(
 	server.route({
 		method: 'DELETE',
 		path: '/api/deleteBoard/{id}',
+		config: {
+			auth: 'token',
+			cors: {
+				origin: ['*'],
+				additionalHeaders: ['cache-control', 'x-requested-with']
+			},
+			payload: {
+				output: 'stream',
+				parse: true,
+				allow: ['application/json', 'image/jpeg', 'multipart/form-data','application/pdf', 'application/x-www-form-urlencoded']
+			}
+		},
 		handler: function(request, reply){
+			console.log("in handler");
 			Surfboard.forge({id: encodeURIComponent(request.params.id)})
 			.fetch({require: true, withRelated:['images']})
 			.then(function(board){
-				board.related('images').models.map((image, index, array) => {
-					const params = {
-						Bucket: "surf-garage",
-						Key: image.attributes.url.split('.com/').pop()
-					};
-					s3.deleteObject(params, function(err, data){
-						if(err){
-							console.log(err, err.stack);
-						} else {
-							console.log(data);
-						}
-					});
-				});
-				board.related('images')
-				.invokeThen('destroy')
-				.then(function(){
-					board.destroy()
-					.then(function(){
-						reply("OK");
-					});
-				})
-				.catch(function(err) {
-					reply({error: true, data: {message: err.message}});
-				});
+				return [board, Promise.all(
+					board.related('images').models.map((image, index, array) => {
+						const params = {
+							Bucket: "surf-garage",
+							Key: image.attributes.url.split('.com/').pop()
+						};
+						return new Promise((resolve, reject) =>  {
+							s3.deleteObject(params, function(err, data){
+								if(err){
+									reject(err);
+								} else {
+									resolve(data);
+								}
+							});
+						});
+					})
+				)];
+			})
+			.then(([board, deletedS3Objects]) => {
+				return [board, board.related('images')
+				.invokeThen('destroy')];
+			})
+			.then(function([board, deletedImages]){
+				return board.destroy();
+			})
+			.then(function(board){
+				reply(board);
 			})
 			.catch(function(err) {
 				reply({error: true, data: {message: err.message}});
 			});
-		},
-		// config: {
-		// 	auth: 'token',
-		// 	cors: {
-		// 		origin: ['*'],
-		// 		additionalHeaders: ['cache-control', 'x-requested-with']
-		// 	}
-		// }
+		}
 	});
 });
 
@@ -316,6 +366,6 @@ server.start((err) => {
 		throw err;
 	}
 
-	//console log sanity when server is running properly
+	//console log when server is running properly
 	console.log('Server running at: ', server.info.uri);
 });
