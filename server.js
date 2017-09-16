@@ -15,23 +15,22 @@ const RedisStore = require('connect-redis');
 const privateKey = 'TemporaryPrivateKey';
 
 var validate = function (request, decodedToken, callback) {
-
-    new User({'username': decodedToken.username})
-    	.fetch({ require : true })
-    	.then(function(model){
-    		if(!model){
-    			console.log("bad model");
-    			return callback(null,false);
-    		}
-    		// console.log("model serialize");
-    		var account = model.attributes;
-    		console.log("passed auth");
-    		return callback(null, true, account);
-    	})
-    	.catch(err => {
-    		console.log("Bad Token");
-    		return callback(null, false);
-    	});
+  new User({'username': decodedToken.username})
+  	.fetch({ require : true })
+  	.then(function(model){
+  		if(!model){
+  			console.log("bad model");
+  			return callback(null,false);
+  		}
+  		// console.log("model serialize");
+  		var account = model.attributes;
+  		console.log("passed auth");
+  		return callback(null, true, account);
+  	})
+  	.catch(err => {
+  		console.log("Bad Token");
+  		return callback(null, false);
+  	});
 };
 
 
@@ -78,6 +77,8 @@ var Surfboard = bookshelf.Model.extend({
   thickness: 'float',
   shaper: 'text',
   url: 'text',
+  createdAt: 'date',
+  featuredimg: 'text',
   images: function(){
   	return this.hasMany(Image);
   }
@@ -141,7 +142,9 @@ server.register(
 		method: 'GET',
 		path: '/api/boards',
 		handler: function(request, reply){
-			Surfboard.fetchAll({withRelated: ['images']}).then(function(surfboard){
+			Surfboard.forge()
+			.orderBy('createdAt', 'DESC')
+			.fetchAll({withRelated: ['images']}).then(function(surfboard){
 				reply(JSON.stringify(surfboard));
 			});
 		}
@@ -287,18 +290,32 @@ server.register(
 	//PUT route to specify a featured or default image to each surfboard
 	server.route({
 		method: 'PUT',
-		path: '/api/boards/{surfboard_id}/{image_id}',
+		path: '/api/boards/edit/{surfboard_id}/{image_url}',
 		config: {
-
 		},
 		handler: function(request, reply){
 			console.log("in handler");
+			console.log(request.params);
 			Surfboard.forge({id: encodeURIComponent(request.params.surfboard_id)})
 			.fetch()
 			.then(board => {
 				console.log(board);
-				reply("OK");
-			});
+				board.save({
+					featuredimg: request.params.image_url
+				})
+				.then(function () {
+					console.log("saved");
+	        reply({error: false, data: {message: 'Board details updated'}});
+	      })
+	      .catch(function (err) {
+	      	console.log("error 1", err.message);
+	        reply({error: true, data: {message: err.message}});
+	      });
+			})
+			.catch(function (err) {
+				console.log("error 2", err.message);
+        reply({error: true, data: {message: err.message}});
+      });
 		}
 	});
 
