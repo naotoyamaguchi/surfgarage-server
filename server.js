@@ -12,7 +12,7 @@ const hapiImageUpload = require('hapi-bully-imageupload');
 const util = require('util');
 const RedisStore = require('connect-redis');
 
-const privateKey = 'TemporaryPrivateKey';
+const privateKey = process.env.PRIVATE_KEY || 'TemporaryPrivateKey';
 
 var validate = function (request, decodedToken, callback) {
   new User({'username': decodedToken.username})
@@ -36,10 +36,10 @@ var validate = function (request, decodedToken, callback) {
 
 
 const AWS = require('aws-sdk');
-const AWS_CONFIG = require('./config/aws.json');
-const AWS_ACCESS_KEY = AWS_CONFIG.accessKeyId;
-const AWS_SECRET = AWS_CONFIG.secretAccessKey;
-const AWS_REGION = AWS_CONFIG.region;
+// const AWS_CONFIG = require('./config/aws.json');
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET = process.env.AWS_SECRET_ACCESS_KEY;
+const AWS_REGION = process.env.AWS_REGION;
 
 const credentials={
   accessKeyId: AWS_ACCESS_KEY,
