@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "env $(cat .env | xargs) node server.js",
+    "migrate": "knex migrate:latest",
+    "start": "npm run migrate && node server.js",
     "dev": "env $(cat .env | xargs) nodemon server.js"
   },
   "author": "",
@@ -25,6 +26,7 @@
     "jsonwebtoken": "^8.0.0",
     "knex": "^0.13.0",
     "pg": "^7.0.2",
-    "s3-image-uploader": "^1.0.7"
+    "s3-image-uploader": "^1.0.7",
+    "uuid": "^3.1.0"
   }
 }
