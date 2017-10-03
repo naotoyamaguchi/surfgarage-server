@@ -172,8 +172,11 @@ server.register(
 		method: 'POST',
 		path: '/api/newUser',
 		handler: function(request, reply){
+			console.log("Console DEBUGGING1 - beginning of POST");
 			bcrypt.genSalt(saltRounds, function(err, salt){
+				console.log("Console DEBUGGING2 - after entry to bcrypt.genSalt");
 				bcrypt.hash(request.payload.password, salt, function(err, hash){
+					console.log("Console DEBUGGING3 - hashing");
 					new User({
 						username: request.payload.username,
 						password: hash
@@ -181,7 +184,8 @@ server.register(
 					.save(null, {method: 'insert'})
 					.then(function() {
 						reply("OK");
-					});
+					})
+					.catch(err => console.log(err));
 				});
 			});
 		},

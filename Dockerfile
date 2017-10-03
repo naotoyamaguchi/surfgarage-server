@@ -3,7 +3,18 @@ MAINTAINER Naoto Yamaguchi "contact@naotoyamaguchi.com"
 
 COPY package.json /srv/
 
-RUN cd /srv && npm install --production
+RUN apk add --update \
+    python \
+    python-dev \
+    py-pip \
+    build-base \
+  && pip install virtualenv
+
+RUN apk --no-cache add --virtual builds-deps build-base
+
+RUN cd /srv && npm install --build-from-source=bcrypt && npm install --production
+
+RUN apk del builds-deps && rm -rf /var/cache/apk/*
 
 COPY server.js /srv/
 COPY knexfile.js /srv/
